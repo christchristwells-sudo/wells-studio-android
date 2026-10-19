@@ -1,0 +1,64 @@
+
+name: Construire APK Wells Studio
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/wells_studio_build_apk.yml"
+      - "wells_studio_android_apk_source_1_0.zip"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v4
+
+      - name: Verifier et extraire le ZIP
+        run: |
+          set -eu
+          test -f wells_studio_android_apk_source_1_0.zip
+          mkdir -p source
+          unzip -o wells_studio_android_apk_source_1_0.zip -d source
+          find source -maxdepth 5 -type f | head -200
+
+      - name: Installer Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Installer le SDK Android
+        uses: android-actions/setup-android@v3
+
+      - name: Installer les composants Android
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Trouver et compiler le projet
+        run: |
+          set -eu
+          WRAPPER="$(find source -type f -name gradlew -print -quit)"
+          if [ -z "$WRAPPER" ]; then
+            echo "ERREUR : aucun fichier gradlew trouve dans le ZIP."
+            echo "Le projet doit etre verifie avant de pouvoir le compiler."
+            exit 1
+          fi
+          ROOT="$(dirname "$WRAPPER")"
+          cd "$ROOT"
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Publier l'APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wells-Studio-APK-debug
+          path: source/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
