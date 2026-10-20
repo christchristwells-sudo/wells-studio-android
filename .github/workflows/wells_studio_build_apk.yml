@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'wells_studio_android_apk_source_1_0.zip'
-      - '.github/workflows/wells_studio_build_apk.yml'
+      - ".github/workflows/wells_studio_build_apk.yml"
+      - "wells_studio_android_apk_source_1_0.zip"
 
 permissions:
   contents: read
@@ -13,41 +13,49 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Récupérer le dépôt
+      - name: Recuperer le depot
         uses: actions/checkout@v4
 
-      - name: Décompresser le projet Wells Studio
-        run: unzip -o wells_studio_android_apk_source_1_0.zip -d source
+      - name: Extraire le ZIP
+        run: |
+          set -eu
+          test -f wells_studio_android_apk_source_1_0.zip
+          mkdir -p source
+          unzip -o wells_studio_android_apk_source_1_0.zip -d source
+          test -f source/wells_studio_android/settings.gradle
 
       - name: Installer Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
       - name: Installer Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: "8.9"
 
-      - name: Installer le SDK Android
-        uses: android-actions/setup-android@v4
-        with:
-          accept-android-sdk-licenses: true
-          packages: |
-            platform-tools
-            platforms;android-35
-            build-tools;35.0.0
+      - name: Preparer le SDK Android (deja present sur le runner)
+        run: |
+          set -eu
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          SDKM="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)"
+          echo "sdkmanager=$SDKM"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Construire l’APK de test
+      - name: Compiler le projet
         working-directory: source/wells_studio_android
         run: gradle --no-daemon assembleDebug
 
-      - name: Publier l’APK
+      - name: Publier l'APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Wells-Studio-APK-debug
-          path: source/wells_studio_android/app/build/outputs/apk/debug/app-debug.apk
+          path: source/wells_studio_android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
+          
