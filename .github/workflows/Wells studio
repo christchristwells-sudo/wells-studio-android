@@ -34,7 +34,9 @@ jobs:
           java-version: "17"
 
       - name: Installer le SDK Android
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: true
 
       - name: Installer les composants Android
         run: |
