@@ -1,54 +1,53 @@
 name: Construire APK Wells Studio
 
 on:
-workflow_dispatch:
-push:
-paths:
-- 'wells_studio_android_apk_source_1_0.zip'
-- '.github/workflows/wells_studio_build_apk.yml'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'wells_studio_android_apk_source_1_0.zip'
+      - '.github/workflows/wells_studio_build_apk.yml'
 
 permissions:
-contents: read
+  contents: read
 
 jobs:
-build:
-runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
 
-steps:
-  - name: Récupérer le dépôt
-    uses: actions/checkout@v4
+      - name: Décompresser le projet Wells Studio
+        run: unzip -o wells_studio_android_apk_source_1_0.zip -d source
 
-  - name: Décompresser le projet Wells Studio
-    run: unzip -o wells_studio_android_apk_source_1_0.zip -d source
+      - name: Installer Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
 
-  - name: Installer Java
-    uses: actions/setup-java@v5
-    with:
-      distribution: temurin
-      java-version: '17'
+      - name: Installer Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.9'
 
-  - name: Installer Gradle
-    uses: gradle/actions/setup-gradle@v6
-    with:
-      gradle-version: '8.9'
+      - name: Installer le SDK Android
+        uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: true
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
 
-  - name: Installer le SDK Android
-    uses: android-actions/setup-android@v4
-    with:
-      accept-android-sdk-licenses: true
-      packages: |
-        platform-tools
-        platforms;android-35
-        build-tools;35.0.0
+      - name: Construire l’APK de test
+        working-directory: source/wells_studio_android
+        run: gradle --no-daemon assembleDebug
 
-  - name: Construire l’APK de test
-    working-directory: source/wells_studio_android
-    run: gradle --no-daemon assembleDebug
-
-  - name: Publier l’APK
-    uses: actions/upload-artifact@v4
-    with:
-      name: Wells-Studio-APK-debug
-      path: source/wells_studio_android/app/build/outputs/apk/debug/app-debug.apk
-      if-no-files-found: error
-      retention-days: 14
+      - name: Publier l’APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wells-Studio-APK-debug
+          path: source/wells_studio_android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
