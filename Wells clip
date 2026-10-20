@@ -1,0 +1,60 @@
+name: Construire APK Wells Clips
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/wells_clips_build_apk.yml"
+      - "wells_clips_source.zip"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v4
+
+      - name: Extraire le ZIP
+        run: |
+          set -eu
+          test -f wells_clips_source.zip
+          mkdir -p source
+          unzip -o wells_clips_source.zip -d source
+          test -f source/wells_clips/settings.gradle
+
+      - name: Installer Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Installer Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Preparer le SDK Android (deja present sur le runner)
+        run: |
+          set -eu
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          SDKM="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)"
+          echo "sdkmanager=$SDKM"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Compiler le projet
+        working-directory: source/wells_clips
+        run: gradle --no-daemon assembleDebug
+
+      - name: Publier l'APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wells-Clips-APK-debug
+          path: source/wells_clips/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
